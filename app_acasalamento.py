@@ -1,3 +1,18 @@
+"""
+Sistema de Geração de Relatórios PDF - Acasalamento de Animais
+
+NOTA SOBRE FONTES:
+Este sistema utiliza a fonte Helvetica, que é a fonte padrão do ReportLab e 
+é praticamente idêntica à Arial. O ReportLab não inclui Arial por padrão, 
+mas Helvetica oferece a mesma aparência e legibilidade.
+
+Fontes disponíveis no ReportLab:
+- Helvetica (equivalente a Arial)
+- Helvetica-Bold
+- Times-Roman
+- Courier
+"""
+
 import streamlit as st
 import pandas as pd
 from reportlab.lib import colors
@@ -111,7 +126,7 @@ class NumberedCanvas(canvas.Canvas):
             page_height = landscape(A4)[1]
             
             # Cabeçalho
-            self.setFont("Arial", 10)
+            self.setFont("Helvetica", 10)
             self.drawString(2*cm, page_height - 2*cm, self.header_text)
             self.drawRightString(page_width - 2*cm, page_height - 2*cm, self.header_date)
             
@@ -121,7 +136,7 @@ class NumberedCanvas(canvas.Canvas):
             self.line(2*cm, page_height - 2.3*cm, page_width - 2*cm, page_height - 2.3*cm)
             
             # Rodapé com numeração
-            self.setFont("Arial", 9)
+            self.setFont("Helvetica", 9)
             page_text = f"Página {self._pageNumber - 1} de {page_count - 1}"
             self.drawCentredString(page_width / 2, 1.5*cm, page_text)
 
@@ -247,13 +262,13 @@ def create_data_tables(df, columns_to_show, rows_per_page, font_size):
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1f77b4')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Arial-Bold'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, 0), font_size),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
             ('TOPPADDING', (0, 0), (-1, 0), 12),
             
             # Dados
-            ('FONTNAME', (0, 1), (-1, -1), 'Arial'),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
             ('FONTSIZE', (0, 1), (-1, -1), font_size),
             ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
             ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f0f0f0')]),
@@ -543,7 +558,7 @@ def main():
         with col_feat1:
             st.markdown("""
             - ✅ **Formato Paisagem** (A4 horizontal)
-            - ✅ **Fonte Arial** em todos os textos
+            - ✅ **Fonte Helvetica** (similar a Arial)
             - ✅ **Tamanho de fonte**: 8pt a 16pt
             - ✅ **Linhas por página**: ajustável
             - ✅ **Cálculo automático** de linhas máximas
