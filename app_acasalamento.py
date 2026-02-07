@@ -224,21 +224,21 @@ class NumberedCanvas(canvas.Canvas):
         canvas.Canvas.save(self)
 
     def draw_page_number(self, page_count):
-        # Pular a primeira página (capa)
+        page_width = landscape(A4)[0]
+        page_height = landscape(A4)[1]
+        
+        # Logo da Alta em TODAS as páginas (incluindo capa)
+        if os.path.exists(LOGO_ALTA_PATH):
+            try:
+                # Logo pequeno no cabeçalho (1.5cm x 1.5cm)
+                self.drawImage(LOGO_ALTA_PATH, 2*cm, page_height - 2.5*cm, 
+                             width=1.5*cm, height=1.5*cm, 
+                             preserveAspectRatio=True, mask='auto')
+            except:
+                pass  # Se houver erro ao carregar logo, continua sem ela
+        
+        # Pular cabeçalho e rodapé apenas na primeira página (capa)
         if self._pageNumber > 1:
-            page_width = landscape(A4)[0]
-            page_height = landscape(A4)[1]
-            
-            # Logo da Alta no canto superior esquerdo (se existir)
-            if os.path.exists(LOGO_ALTA_PATH):
-                try:
-                    # Logo pequeno no cabeçalho (1.5cm x 1.5cm)
-                    self.drawImage(LOGO_ALTA_PATH, 2*cm, page_height - 2.5*cm, 
-                                 width=1.5*cm, height=1.5*cm, 
-                                 preserveAspectRatio=True, mask='auto')
-                except:
-                    pass  # Se houver erro ao carregar logo, continua sem ela
-            
             # Cabeçalho (ajustado para dar espaço ao logo)
             self.setFont("Helvetica", 10)
             self.drawString(4*cm, page_height - 2*cm, self.header_text)
@@ -254,13 +254,13 @@ class NumberedCanvas(canvas.Canvas):
             page_text = f"Página {self._pageNumber - 1} de {page_count - 1}"
             self.drawCentredString(page_width / 2, 1.5*cm, page_text)
 
-def create_cover_page(template, client_name, logo_path=None):
+def create_cover_page(template, client_name, responsible_name, contact_phone, logo_path=None):
     """Cria a capa do relatório"""
     elements = []
     styles = getSampleStyleSheet()
     
-    # Espaço inicial
-    elements.append(Spacer(1, 4*cm))
+    # Espaço inicial (considerando logo da Alta no topo)
+    elements.append(Spacer(1, 3*cm))
     
     # Logo (se fornecido)
     if logo_path and os.path.exists(logo_path):
@@ -324,6 +324,26 @@ def create_cover_page(template, client_name, logo_path=None):
     )
     client = Paragraph(f"{client_name}", client_style)
     elements.append(client)
+    elements.append(Spacer(1, 1*cm))
+    
+    # Informações do responsável
+    info_style = ParagraphStyle(
+        'InfoStyle',
+        parent=styles['Normal'],
+        fontSize=14,
+        textColor=colors.HexColor('#2c3e50'),
+        alignment=TA_CENTER,
+        fontName='Helvetica',
+        spaceAfter=10
+    )
+    
+    # Nome do responsável
+    responsible = Paragraph(f"<b>Responsável pelo Acasalamento:</b> {responsible_name}", info_style)
+    elements.append(responsible)
+    
+    # Telefone
+    phone = Paragraph(f"<b>Telefone para Contato:</b> {contact_phone}", info_style)
+    elements.append(phone)
     
     # Data
     date_style = ParagraphStyle(
@@ -335,14 +355,15 @@ def create_cover_page(template, client_name, logo_path=None):
         fontName='Helvetica'
     )
     date_text = Paragraph(f"Data: {datetime.now().strftime('%d/%m/%Y')}", date_style)
-    elements.append(Spacer(1, 3*cm))
+    elements.append(Spacer(1, 1.5*cm))
     elements.append(date_text)
     
     elements.append(PageBreak())
     return elements
 
 def create_data_tables(df, columns_to_show, rows_per_page, font_size):
-    """Cria tabelas com os dados do CSV, divididas por número de linhas"""
+    """Cria tabelas com os dados do CSV, divididas por número de linhas.
+    Sempre preenche a página completamente com exatamente rows_per_page linhas."""
     elements = []
     
     # Filtrar apenas as colunas selecionadas
@@ -358,10 +379,27 @@ def create_data_tables(df, columns_to_show, rows_per_page, font_size):
     for page_num in range(num_pages):
         # Determinar início e fim do slice
         start_idx = page_num * rows_per_page
-        end_idx = min(start_idx + rows_per_page, total_rows)
+        end_idx = start_idx + rows_per_page  # SEMPRE pegar rows_per_page linhas
         
         # Obter dados para esta página
-        df_page = df_filtered.iloc[start_idx:end_idx]
+        if end_idx <= total_rows:
+            # Página completa com dados reais
+            df_page = df_filtered.iloc[start_idx:end_idx]
+        else:
+            # Última página - preencher com dados reais + linhas vazias
+            df_page = df_filtered.iloc[start_idx:total_rows]
+            
+            # Calcular quantas linhas vazias precisamos adicionar
+            rows_needed = rows_per_page - len(df_page)
+            
+            # Criar linhas vazias
+            empty_rows = pd.DataFrame(
+                [[''] * len(columns_to_show) for _ in range(rows_needed)],
+                columns=columns_to_show
+            )
+            
+            # Adicionar linhas vazias ao dataframe da página
+            df_page = pd.concat([df_page, empty_rows], ignore_index=True)
         
         # Preparar dados para a tabela
         data = [df_page.columns.tolist()]  # Cabeçalho
@@ -422,6 +460,8 @@ def generate_pdf(df, config):
     cover_elements = create_cover_page(
         config['template'],
         config['client_name'],
+        config['responsible_name'],
+        config['contact_phone'],
         config.get('logo_path')
     )
     elements.extend(cover_elements)
@@ -491,7 +531,7 @@ def main():
             
             # Criar colunas para configurações
             st.markdown("---")
-            col1, col2 = st.columns([1, 1])
+            col1, col2, col3 = st.columns([1, 1, 1])
             
             with col1:
                 st.markdown('<p class="section-title">📝 Informações da Capa</p>', unsafe_allow_html=True)
@@ -499,6 +539,16 @@ def main():
                     "Nome da Fazenda/Cliente:",
                     value="Fazenda Exemplo",
                     help="Nome que aparecerá na capa do relatório"
+                )
+                responsible_name = st.text_input(
+                    "Responsável pelo Acasalamento:",
+                    value="",
+                    help="Nome do responsável técnico"
+                )
+                contact_phone = st.text_input(
+                    "Telefone para Contato:",
+                    value="",
+                    help="Telefone do responsável"
                 )
             
             with col2:
@@ -513,6 +563,10 @@ def main():
                     value=datetime.now().strftime('%d/%m/%Y'),
                     help="Texto que aparecerá no canto direito do cabeçalho"
                 )
+            
+            with col3:
+                st.markdown('<p class="section-title">📊 Dados Técnicos</p>', unsafe_allow_html=True)
+                st.info("ℹ️ Informações adicionais serão exibidas na capa do relatório")
             
             # Configurações de formatação
             st.markdown("---")
@@ -624,6 +678,8 @@ def main():
                             config = {
                                 'template': template,
                                 'client_name': client_name,
+                                'responsible_name': responsible_name,
+                                'contact_phone': contact_phone,
                                 'header_name': header_name,
                                 'header_date': header_date,
                                 'columns_to_show': columns_to_show,
