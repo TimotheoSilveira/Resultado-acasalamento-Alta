@@ -1,50 +1,35 @@
-"""
-Sistema de Geração de Relatórios PDF - Acasalamento de Animais
-"""
-
 import streamlit as st
 import pandas as pd
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import A4, landscape
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak, Image
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import cm
-from reportlab.lib.enums import TA_CENTER
-from reportlab.pdfgen import canvas
-from datetime import datetime
-import io
 import os
-import math
+from datetime import datetime
 
-# =====================================================
-# STREAMLIT CONFIG
-# =====================================================
-st.set_page_config(
-    page_title="Gerador de Relatórios - Acasalamento",
-    page_icon="🐄",
-    layout="wide"
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import cm
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import (
+    SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
 )
+from reportlab.lib import colors
+from reportlab.pdfgen import canvas
 
+
+# ===============================
+# Paths
+# ===============================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-LOGO_PATH = os.path.join(BASE_DIR, "Logo Alta_com frase.jpg")
+LOGO_HEADER_PATH = os.path.join(BASE_DIR, "Logo Alta_com frase.jpg")
 
-# =====================================================
-# FUNÇÕES AUXILIARES
-# =====================================================
-def calculate_max_rows_per_page(font_size):
-    page_height = landscape(A4)[1]
-    available = page_height - (3 * cm) - (2.5 * cm)
-    return max(10, int(available / (font_size + 8)))
 
-# =====================================================
-# CANVAS COM LOGO
-# =====================================================
+# ===============================
+# Canvas com cabeçalho, rodapé e marca d’água
+# ===============================
 class NumberedCanvas(canvas.Canvas):
-    def __init__(self, *args, header_left="", header_right="", logo_path=None, **kwargs):
+    def __init__(self, *args, **kwargs):
+        self.header_text = kwargs.pop("header_text", "")
+        self.header_date = kwargs.pop("header_date", "")
+        self.logo_path = kwargs.pop("logo_path", None)
+        self.watermark_text = kwargs.pop("watermark_text", "")
         super().__init__(*args, **kwargs)
-        self.header_left = header_left
-        self.header_right = header_right
-        self.logo_path = logo_path
         self._saved_page_states = []
 
     def showPage(self):
@@ -52,182 +37,190 @@ class NumberedCanvas(canvas.Canvas):
         self._startPage()
 
     def save(self):
-        total = len(self._saved_page_states)
         for state in self._saved_page_states:
             self.__dict__.update(state)
-            self.draw_header_footer(total)
-            super().showPage()
-        super().save()
+            self.draw_page()
+            canvas.Canvas.showPage(self)
+        canvas.Canvas.save(self)
 
-    def draw_header_footer(self, total_pages):
-        if self._pageNumber == 1:
-            return
+    def draw_page(self):
+        page_width, page_height = A4
 
-        w, h = landscape(A4)
+        # ===== Marca d’água =====
+        if self.watermark_text:
+            self.saveState()
+            self.setFont("Helvetica-Bold", 60)
+            self.setFillGray(0.85)
+            self.translate(page_width / 2, page_height / 2)
+            self.rotate(45)
+            self.drawCentredString(0, 0, self.watermark_text)
+            self.restoreState()
 
-        # LOGO
+        # ===== Cabeçalho =====
         text_x = 2 * cm
+
         if self.logo_path and os.path.exists(self.logo_path):
-            self.drawImage(
-                self.logo_path,
-                2 * cm,
-                h - 2.2 * cm,
-                width=3.5 * cm,
-                height=1.2 * cm,
-                preserveAspectRatio=True,
-                mask="auto"
-            )
-            text_x = 6 * cm
+            try:
+                self.drawImage(
+                    self.logo_path,
+                    2 * cm,
+                    page_height - 2.2 * cm,
+                    width=3.8 * cm,
+                    height=1.2 * cm,
+                    preserveAspectRatio=True,
+                    mask="auto",
+                )
+                text_x = 6.5 * cm
+            except:
+                pass
 
-        # HEADER
         self.setFont("Helvetica", 10)
-        self.drawString(text_x, h - 2 * cm, self.header_left)
-        self.drawRightString(w - 2 * cm, h - 2 * cm, self.header_right)
+        self.setFillColor(colors.black)
+        self.drawString(text_x, page_height - 2 * cm, self.header_text)
+        self.drawRightString(
+            page_width - 2 * cm,
+            page_height - 2 * cm,
+            self.header_date,
+        )
 
-        self.setStrokeColor(colors.grey)
-        self.line(2 * cm, h - 2.35 * cm, w - 2 * cm, h - 2.35 * cm)
-
-        # FOOTER
+        # ===== Rodapé =====
         self.setFont("Helvetica", 9)
         self.drawCentredString(
-            w / 2,
+            page_width / 2,
             1.5 * cm,
-            f"Página {self._pageNumber - 1} de {total_pages - 1}"
+            f"Página {self._pageNumber}",
         )
 
-# =====================================================
-# CAPA
-# =====================================================
-def create_cover(client):
-    styles = getSampleStyleSheet()
-    elems = [Spacer(1, 4 * cm)]
 
-    if os.path.exists(LOGO_PATH):
-        img = Image(LOGO_PATH, width=8 * cm, height=8 * cm, kind="proportional")
-        img.hAlign = "CENTER"
-        elems.extend([img, Spacer(1, 2 * cm)])
+# ===============================
+# Geração do PDF
+# ===============================
+def generate_pdf(df, config):
+    file_path = "resultado_acasalamento.pdf"
 
-    elems.append(
-        Paragraph(
-            "RELATÓRIO DE ACASALAMENTO",
-            ParagraphStyle(
-                "title",
-                fontSize=34,
-                alignment=TA_CENTER,
-                fontName="Helvetica-Bold",
-                textColor=colors.HexColor("#1f77b4")
-            )
-        )
-    )
-
-    elems.append(Spacer(1, 1.5 * cm))
-    elems.append(Paragraph(client, ParagraphStyle("c", fontSize=26, alignment=TA_CENTER)))
-    elems.append(Spacer(1, 3 * cm))
-    elems.append(Paragraph(datetime.now().strftime("%d/%m/%Y"), ParagraphStyle("d", alignment=TA_CENTER)))
-    elems.append(PageBreak())
-    return elems
-
-# =====================================================
-# TABELAS
-# =====================================================
-def create_tables(df, rows, font):
-    elements = []
-    pages = math.ceil(len(df) / rows)
-
-    for p in range(pages):
-        chunk = df.iloc[p * rows:(p + 1) * rows]
-        data = [chunk.columns.tolist()] + chunk.astype(str).values.tolist()
-
-        table = Table(data, repeatRows=1)
-        table.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1f77b4")),
-            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-            ("FONTSIZE", (0, 0), (-1, -1), font),
-            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
-            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f2f2f2")])
-        ]))
-
-        elements.append(table)
-        if p < pages - 1:
-            elements.append(PageBreak())
-
-    return elements
-
-# =====================================================
-# PDF
-# =====================================================
-def generate_pdf(df, client, header_l, header_r, font, rows):
-    buffer = io.BytesIO()
     doc = SimpleDocTemplate(
-        buffer,
-        pagesize=landscape(A4),
+        file_path,
+        pagesize=A4,
         leftMargin=2 * cm,
         rightMargin=2 * cm,
-        topMargin=3 * cm,
-        bottomMargin=2.5 * cm
+        topMargin=3.5 * cm,
+        bottomMargin=2.5 * cm,
     )
 
+    styles = getSampleStyleSheet()
     elements = []
-    elements.extend(create_cover(client))
-    elements.extend(create_tables(df, rows, font))
+
+    # ===== Título =====
+    elements.append(Paragraph("<b>Resultado de Acasalamento</b>", styles["Title"]))
+    elements.append(Spacer(1, 12))
+
+    # ===== Tabela =====
+    data = [df.columns.tolist()] + df.values.tolist()
+
+    table = Table(data, repeatRows=1)
+    table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+                ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
+                ("FONT", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("ALIGN", (1, 1), (-1, -1), "CENTER"),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ]
+        )
+    )
+
+    elements.append(table)
 
     doc.build(
         elements,
-        canvasmaker=lambda *a, **k: NumberedCanvas(
-            *a,
-            header_left=header_l,
-            header_right=header_r,
-            logo_path=LOGO_PATH,
-            **k
-        )
+        canvasmaker=lambda *args, **kwargs: NumberedCanvas(
+            *args,
+            header_text=config["header_name"],
+            header_date=config["header_date"],
+            logo_path=LOGO_HEADER_PATH,
+            watermark_text=config["watermark"],
+            **kwargs,
+        ),
     )
 
-    buffer.seek(0)
-    return buffer
+    return file_path
 
-# =====================================================
-# APP
-# =====================================================
+
+# ===============================
+# Streamlit App
+# ===============================
 def main():
-    st.title("🐄 Gerador de Relatórios - Acasalamento")
+    st.set_page_config(page_title="Acasalamento Alta", layout="wide")
+    st.title("📊 Acasalamento – Geração de PDF")
 
-    file = st.file_uploader("Upload do CSV", type="csv")
+    uploaded_file = st.file_uploader("Upload do arquivo CSV", type=["csv"])
 
-    if file:
-        # FORÇAR ENCODING CORRETO
-        df = pd.read_csv(file, encoding="latin1")
+    if uploaded_file:
+        try:
+            # ===== Leitura robusta =====
+            df = pd.read_csv(uploaded_file, encoding="latin1")
 
-        # RENOMEAÇÃO POR POSIÇÃO (GARANTIDO)
-        df.columns = [
-            "ID animal",
-            "Tipo sêmen",
-            "Índice",
-            "Código pai",
-            "NAAB Opção 1",
-            "1º Opção",
-            "INB %",
-            "NAAB Opção 2",
-            "2º Opção",
-            "INB %",
-            "NAAB Opção 3",
-            "3º Opção",
-            "INB %"
-        ]
+            # ===== Renomear colunas por posição =====
+            expected_columns = [
+                "ID animal",
+                "Tipo sêmen",
+                "Índice",
+                "Código pai",
+                "NAAB Opção 1",
+                "1ª Opção",
+                "INB %",
+                "NAAB Opção 2",
+                "2ª Opção",
+                "INB %",
+                "NAAB Opção 3",
+                "3ª Opção",
+                "INB %",
+            ]
 
-        st.success("Cabeçalhos corrigidos com sucesso.")
-        st.dataframe(df.head())
+            if len(df.columns) >= len(expected_columns):
+                df.columns = expected_columns + list(
+                    df.columns[len(expected_columns):]
+                )
 
-        client = st.text_input("Cliente", "Fazenda Exemplo")
-        header_l = st.text_input("Cabeçalho esquerdo", "Relatório de Acasalamento")
-        header_r = st.text_input("Cabeçalho direito", datetime.now().strftime("%d/%m/%Y"))
-        font = st.slider("Fonte", 8, 16, 10)
-        rows = st.number_input("Linhas por página", 10, calculate_max_rows_per_page(font), 30)
+            st.success("Arquivo carregado com sucesso")
+            st.dataframe(df, use_container_width=True)
 
-        if st.button("Gerar PDF"):
-            pdf = generate_pdf(df, client, header_l, header_r, font, rows)
-            st.download_button("Baixar PDF", pdf, file_name="acasalamento.pdf", mime="application/pdf")
+            # ===== Configurações =====
+            st.subheader("Configurações do PDF")
+
+            header_name = st.text_input(
+                "Nome no cabeçalho",
+                "Plano de Acasalamento – Alta Genetics",
+            )
+
+            watermark = st.text_input(
+                "Texto da marca d’água",
+                "USO INTERNO – ALTA GENETICS",
+            )
+
+            header_date = datetime.now().strftime("%d/%m/%Y")
+
+            if st.button("📄 Gerar PDF"):
+                config = {
+                    "header_name": header_name,
+                    "header_date": header_date,
+                    "watermark": watermark,
+                }
+
+                pdf_path = generate_pdf(df, config)
+
+                with open(pdf_path, "rb") as f:
+                    st.download_button(
+                        "⬇️ Download do PDF",
+                        f,
+                        file_name="resultado_acasalamento.pdf",
+                        mime="application/pdf",
+                    )
+
+        except Exception as e:
+            st.error(f"Erro ao processar o arquivo: {e}")
+
 
 if __name__ == "__main__":
     main()
