@@ -53,15 +53,16 @@ def rename_csv_columns(df):
             new_names.append('Índice')
         elif 'TOURO' in col_upper:
             new_names.append('Código pai')
-        elif 'NAAB' in col_upper and '.' not in col:
+        elif col_upper == 'NAAB':
             naab_count += 1
-            new_names.append(f'NAAB Opção {naab_count}')
-        elif 'NAAB' in col_upper and '.' in col:
-            naab_count += 1
-            new_names.append(f'NAAB Opção {naab_count}')
-        elif 'NAAB' in col_upper and '.' not in col:
-            naab_count += 1
-            new_names.append(f'NAAB Opção {naab_count}')
+              if naab_count == 1:
+              new_names.append('NAAB 1ª Opção')
+        elif naab_count == 2:
+            new_names.append('NAAB 2ª Opção')
+        elif naab_count == 3:
+            new_names.append('NAAB 3ª Opção')
+        else:
+            new_names.append(f'NAAB {naab_count}ª Opção')
         elif 'NOME CURTO' in col_upper or ('NOME' in col_upper and 'CURTO' in col_upper):
             nome_curto_count += 1
             new_names.append(f'{nome_curto_count}º Opção')
