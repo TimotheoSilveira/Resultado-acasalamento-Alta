@@ -55,7 +55,7 @@ def rename_csv_columns(df):
             new_names.append('Código pai')
         elif col_upper == 'NAAB':
             naab_count += 1
-            new_names.append(f'NAAB Opção {naab_count}')
+            new_names.append(f'NAAB - {naab_count}ª Opção')
         elif 'NOME CURTO' in col_upper or ('NOME' in col_upper and 'CURTO' in col_upper):
             nome_curto_count += 1
             new_names.append(f'{nome_curto_count}º Opção')
