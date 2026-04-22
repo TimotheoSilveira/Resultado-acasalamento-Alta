@@ -163,7 +163,7 @@ def create_cover_page(client_name, responsible_name, contact_phone, orientation=
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 28),
-        ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#1f77b4')),
+        ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
         ('TOPPADDING', (0, 0), (-1, -1), 4*cm),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 1*cm),
     ]))
