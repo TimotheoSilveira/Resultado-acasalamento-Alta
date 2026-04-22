@@ -250,7 +250,7 @@ def create_data_pages(df, columns_to_show, rows_per_page, font_size, orientation
             ('TOPPADDING', (0, 0), (-1, 0), 8),
             
             # Dados
-            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica-bold'),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 1), (-1, -1), font_size),
             ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
             ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f0f0f0')]),
