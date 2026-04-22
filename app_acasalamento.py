@@ -389,7 +389,7 @@ if uploaded_file:
                 "Linhas por Página:",
                 min_value=10,
                 max_value=max_rows,
-                value=min(40, max_rows),
+                value=23,
                 step=5
             )
         
