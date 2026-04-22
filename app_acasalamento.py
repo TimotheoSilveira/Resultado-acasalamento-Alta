@@ -161,8 +161,8 @@ def create_cover_page(client_name, responsible_name, contact_phone, orientation=
         logo_table = Table([[logo]], colWidths=[page_width - 2*cm])
         logo_table.setStyle(TableStyle([
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('TOPPADDING', (0, 0), (-1, -1), 1*cm),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 1*cm),
+            ('TOPPADDING', (0, 0), (-1, -1), 0,5*cm),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 0,5*cm),
         ]))
         elements.append(logo_table)
    
@@ -175,8 +175,8 @@ def create_cover_page(client_name, responsible_name, contact_phone, orientation=
         ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 28),
         ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
-        ('TOPPADDING', (0, 0), (-1, -1), 4*cm),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 1*cm),
+        ('TOPPADDING', (0, 0), (-1, -1), 2*cm),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0,5*cm),
     ]))
     elements.append(title_table)
     
