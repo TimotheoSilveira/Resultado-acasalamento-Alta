@@ -176,7 +176,7 @@ def create_cover_page(client_name, responsible_name, contact_phone, orientation=
         ('FONTSIZE', (0, 0), (-1, -1), 28),
         ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
         ('TOPPADDING', (0, 0), (-1, -1), 2*cm),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 0,5*cm),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 1*cm),
     ]))
     elements.append(title_table)
     
