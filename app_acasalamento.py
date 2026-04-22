@@ -153,7 +153,18 @@ def create_cover_page(client_name, responsible_name, contact_phone, orientation=
     else:
         page_width = portrait(A4)[0]
         page_height = portrait(A4)[1]
-        
+       
+  # Adicionar logo grande na capa
+    if LOGO_ALTA_PATH and os.path.exists(LOGO_ALTA_PATH):
+        from reportlab.platypus import Image
+        logo = Image(LOGO_ALTA_PATH, width=10*cm, height=4*cm)
+        logo_table = Table([[logo]], colWidths=[page_width - 2*cm])
+        logo_table.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('TOPPADDING', (0, 0), (-1, -1), 1*cm),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 1*cm),
+        ]))
+        elements.append(logo_table)
    
   # Título
     title_data = [[f"RELATÓRIO DE ACASALAMENTO"]]
